@@ -1,0 +1,131 @@
+number-facts-assessment/
+├── backend/
+│   ├── controllers/
+│   │   └── studentController.js
+│   ├── models/
+│   │   └── Student.js
+│   ├── routes/
+│   │   └── studentRoutes.js
+│   ├── app.js
+│   └── database.js
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   │   └── Button.js
+│   │   ├── pages/
+│   │   │   ├── TeacherDashboard.js
+│   │   │   └── AssessmentScreen.js
+│   │   ├── App.js
+│   │   ├── index.js
+│   │   └── api.js
+│   ├── package.json
+│   └── .env
+└── README.md
+
+// backend/app.js
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const studentRoutes = require('./routes/studentRoutes');
+const assessmentRoutes = require('./routes/assessmentRoutes');
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+app.use('/api/students', studentRoutes);
+app.use('/api/assessments', assessmentRoutes);
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
+
+// backend/routes/studentRoutes.js
+const express = require('express');
+const router = express.Router();
+const studentController = require('../controllers/studentController');
+router.post('/add', studentController.addStudent);
+router.get('/:id', studentController.getStudent);
+router.get('/', studentController.getAllStudents);
+module.exports = router;
+
+// backend/controllers/studentController.js
+const Student = require('../models/Student');
+exports.addStudent = async (req, res) => {
+  const { name, age, classLevel } = req.body;
+  const newStudent = new Student({ name, age, classLevel });
+  await newStudent.save();
+  res.status(201).send(newStudent);
+};
+exports.getStudent = async (req, res) => {
+  const student = await Student.findById(req.params.id);
+  res.status(200).send(student);
+};
+exports.getAllStudents = async (req, res) => {
+  const students = await Student.find();
+  res.status(200).send(students);
+};
+
+// backend/models/Student.js
+const mongoose = require('mongoose');
+const studentSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  age: { type: Number, required: true },
+  classLevel: { type: String, required: true },
+});
+module.exports = mongoose.model('Student', studentSchema);
+
+// frontend/src/components/Button.js
+import React from 'react';
+const Button = ({ onClick, text, style }) => {
+  return <button onClick={onClick} className={`btn ${style}`}>{text}</button>;
+};
+export default Button;
+
+// frontend/src/pages/TeacherDashboard.js
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import Button from '../components/Button';
+const TeacherDashboard = () => {
+  const [students, setStudents] = useState([]);
+  useEffect(() => { const fetchStudents = async () => { const response = await axios.get('http://localhost:5000/api/students'); setStudents(response.data); }; fetchStudents(); }, []);
+  const handleAddStudent = () => {};
+  return (
+    <div>
+      <h1>Teacher Dashboard</h1>
+      <Button onClick={handleAddStudent} text="Add Student" style="primary" />
+      <ul>{students.map(student => (<li key={student._id}>{student.name}</li>))}</ul>
+    </div>
+  );
+};
+export default TeacherDashboard;
+
+// frontend/src/pages/AssessmentScreen.js
+import React, { useState } from 'react';
+import Button from '../components/Button';
+const AssessmentScreen = () => {
+  const [question, setQuestion] = useState("What is 5 + 3?");
+  const [timeLeft, setTimeLeft] = useState(30);
+  const handleAnswer = (answer) => { console.log(`Answer selected: ${answer}`); };
+  return (
+    <div>
+      <h1>Assessment</h1>
+      <div>
+        <p>{question}</p>
+        <p>Time left: {timeLeft}s</p>
+      </div>
+      <Button onClick={() => handleAnswer('8')} text="8" style="primary" />
+      <Button onClick={() => handleAnswer('10')} text="10" style="secondary" />
+    </div>
+  );
+};
+export default AssessmentScreen;
+
+// frontend/src/api.js
+import axios from 'axios';
+const API = axios.create({ baseURL: 'http://localhost:5000/api/' });
+export const getStudents = () => API.get('students');
+export const addStudent = (data) => API.post('students/add', data);
+
+// frontend/styles.css
+/* Add some basic styling for components */
+.btn { padding: 10px 20px; border: none; cursor: pointer; font-size: 16px; }
+.btn.primary { background-color: #007bff; color: white; }
+.btn.secondary { background-color: #6c757d; color: white; }
